@@ -1,0 +1,5 @@
+train: ../train
+valid: ../valid
+test: ../test
+num_classes: 2
+categories: ['fire', 'non_fire']
