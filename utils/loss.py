@@ -3,19 +3,16 @@ import torch.nn as nn
 from activations import log_softmax
 import time
 
+from torch import Tensor
 
-# Cách của bạn để tính CrossEntropyLoss
-def CrossEntropyLoss(outputs, targets):
-    num_targets = targets.shape[0]
-    batch_size = outputs.shape[0]
+def CrossEntropyLoss(outputs: Tensor, targets: Tensor) -> Tensor:
     outputs = log_softmax(outputs)
-    outputs = outputs[range(batch_size), targets]
-    return -torch.sum(outputs) / num_targets
+    outputs = outputs[range(targets.shape[0]), targets]
+    return -torch.sum(outputs) / targets.shape[0]
+
 
 if __name__ == ("__main__"):
-    outputs = torch.tensor([[2.0, 1.0, 0.1], [1.0, 2.0, 0.1]], requires_grad=True)
-    targets = torch.tensor([0, 1])
-
+ 
     outputs = torch.randn(1000, 10, requires_grad=True)  # 1000 ví dụ, 10 lớp
     targets = torch.randint(0, 10, (1000,))
 
