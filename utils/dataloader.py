@@ -10,7 +10,7 @@ from train import data_yaml
 from utils.augmentations import transform_input
 
 class CustomDataLoader():
-    def __init__(self, mode,  batch_size, num_workers):
+    def __init__(self, mode :str,  batch_size:int, num_workers:int):
 
         self.mode = mode
         self.batch_size = batch_size
