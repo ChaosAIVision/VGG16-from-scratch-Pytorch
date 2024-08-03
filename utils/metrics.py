@@ -180,7 +180,6 @@ def calculate_precision_recall(cm: np.ndarray, labels: list = None, average: str
         }
     else:
       
-        # Ensure labels match the number of classes
         if len(labels) != n_classes:
             raise ValueError("Number of labels must match the number of classes in the confusion matrix.")
 

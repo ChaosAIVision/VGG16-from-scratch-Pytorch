@@ -1,35 +1,44 @@
 import yaml
 
+class ManagerDataYaml:
+    def __init__(self, yaml_path: str):
+        self.yaml_path = yaml_path
+        self.data = None
 
-def load_yaml(yaml_path: str) -> dict:
-    """
-    Load  data YAML and return it's properties as dictionnary
+    def load_yaml(self) -> dict:
+        """
+        Load data from YAML file and return its properties as a dictionary.
+        """
+        try:
+            with open(self.yaml_path, 'r') as file:
+                self.data = yaml.safe_load(file)
+                return self.data
+        except Exception as e:
+            return f"Error loading YAML file: {self.yaml_path}. Exception: {e}"
 
-    """
-    try:
-        with open(yaml_path, 'r') as file:
-            data = yaml.safe_load(file)
-            return data
-    except:
-            return (f"Error loading YAML file: {yaml_path}")
-
-
-def get_properties(data: dict, key: str) -> str:
-    """
-    Get the value of a specific property from a dictionary.
-
-    :param data: A dictionary containing properties
-    :param key: The key for which to retrieve the value
-    :return: The value associated with the key as a string, or a message if the key is not found
-    """
-    if isinstance(data, dict):
-        if key in data:
-            value = data[key]
-            return str(value)
+    def get_properties(self, key: str) -> str:
+        """
+        Get the value of a specific property from the loaded YAML data.
+        """
+        if isinstance(self.data, dict):
+            if key in self.data:
+                value = self.data[key]
+                return str(value)
+            else:
+                return f"Key '{key}' not found in the data."
         else:
-            return f"Key '{key}' not found in the data.yaml."
+            return "Data has not been loaded or is not a dictionary."
 
 if __name__ == "__main__":
-    data = load_yaml('/Users/chaos/Documents/Chaos_working/Chaos_projects/VGG16-from-scratch-Pytorch/dat1a.yaml')
-    proerties = get_properties(data,'train')
+    # Create an instance of ManagerDataYaml
+    manager = ManagerDataYaml('/Users/chaos/Documents/Chaos_working/Chaos_projects/VGG16-from-scratch-Pytorch/data.yaml')
+    
+    # Load YAML data
+    data = manager.load_yaml()
+    
+    # Get specific property
+    properties = manager.get_properties('train')
+    
+    # Print results
     print(data)
+    print(properties)

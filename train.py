@@ -1,0 +1,1 @@
+data_yaml = '/Users/chaos/Documents/Chaos_working/Chaos_projects/VGG16-from-scratch-Pytorch/data.yaml'
