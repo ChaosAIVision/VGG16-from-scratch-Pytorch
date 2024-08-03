@@ -2,6 +2,9 @@ import yaml
 import os 
 import sys
 import matplotlib.pyplot as plt
+import os
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(parent_dir)
 from train import data_yaml
@@ -22,14 +25,14 @@ class ManagerDataYaml:
         except Exception as e:
             return f"Error loading YAML file: {self.yaml_path}. Exception: {e}"
 
-    def get_properties(self, key: str) -> str:
+    def get_properties(self, key: str) :
         """
         Get the value of a specific property from the loaded YAML data.
         """
         if isinstance(self.data, dict):
             if key in self.data:
                 value = self.data[key]
-                return str(value)
+                return (value)
             else:
                 return f"Key '{key}' not found in the data."
         else:
@@ -89,62 +92,69 @@ class ManageSaveDir():
             data_path = self.test_dataset
 
         num_categories = []
-        for categories in self.categories:
-            categories_path = os.path.join(data_path, categories)
+        for category in self.categories:
+            categories_path = os.path.join(data_path, category)
             num_labels = self.count_items_in_folder(categories_path)
             num_categories.append(num_labels)
         return num_categories
 
+
+
     def plot_dataset(self):
-            # Lấy số lượng hình ảnh cho các tập dữ liệu
-            distribution_train = self.count_distribution_labels('train')
-            distribution_valid = self.count_distribution_labels('valid')
+        # Lấy số lượng hình ảnh cho các tập dữ liệu
+        distribution_train = self.count_distribution_labels('train')
+        distribution_valid = self.count_distribution_labels('valid')
+        
+        num_image_train = sum(distribution_train)
+        num_image_valid = sum(distribution_valid)
+        if self.test_dataset is not None:
+            distribution_test = self.count_distribution_labels('test')
+            num_image_test = sum(distribution_test)
+        else:
+            num_image_test = 0
+
+        # Tổng hợp số lượng hình ảnh cho mỗi danh mục
+        total_distribution = [0] * len(self.categories)
+        
+        for dist in (distribution_train, distribution_valid, distribution_test):
+            for i, count in enumerate(dist):
+                if isinstance(count, int):  # Đảm bảo giá trị là số nguyên
+                    total_distribution[i] += count
+        
+        file_path = os.path.join(self.result_dir, 'dataset_distribution.png')
+
+        fig, ax = plt.subplots(1, 2, figsize=(15, 6))
+
+        # Plot thông tin tổng số hình ảnh
+        ax[0].axis('off')
+        text_str = f"Number of images in train: {num_image_train}\n" \
+                f"Number of images in valid: {num_image_valid}\n" \
+                f"Number of images in test: {num_image_test}"
+        ax[0].text(0.5, 0.5, text_str, fontsize=12, ha='center', va='center')
+
+        # Plot số lượng hình ảnh tổng hợp cho từng danh mục
+        x = range(len(self.categories))
+        width = 0.2
+
+        # Tạo màu cho từng danh mục
+        cmap = plt.get_cmap('tab20')  # Lấy bảng màu 'tab20'
+        colors = [cmap(i) for i in range(len(self.categories))]
+
+        # Vẽ biểu đồ cột với từng màu khác nhau
+        ax[1].bar(x, total_distribution, color=colors, width=width, label='Total', align='center')
+
+        ax[1].set_xlabel('Categories')
+        ax[1].set_ylabel('Number of images')
+        ax[1].set_xticks(x)
+        ax[1].set_xticklabels(self.categories, rotation=90)
+        ax[1].legend()
+
+        plt.tight_layout()
+
+        # Lưu hình ảnh vào tệp tin
+        plt.savefig(file_path)
+        plt.close()  # Đóng hình ảnh để giải phóng bộ nhớ
             
-            num_image_train = sum(distribution_train)
-            num_image_valid = sum(distribution_valid)
-            if self.test_dataset is not None:
-                distribution_test = self.count_distribution_labels('test')
-                num_image_test = sum(distribution_valid)
-            else:
-                distribution_test = 0
-                num_image_test = 0
-
-
-            
-            file_path = os.path.join(self.result_dir, 'dataset_distribution.png')
-
-            fig, ax = plt.subplots(1, 2, figsize=(15, 6))
-
-            ax[0].axis('off')
-            text_str = f"Number of images in train: {num_image_train}\n" \
-                    f"Number of images in valid: {num_image_valid}\n" \
-                    f"Number of images in test: {num_image_test}"
-            ax[0].text(0.5, 0.5, text_str, fontsize=12, ha='center', va='center')
-
-            x = range(len(self.categories))
-            width = 0.2
-
-            ax[1].bar([i - width for i in x], distribution_train, width=width, label='Train', align='center')
-            ax[1].bar(x, distribution_valid, width=width, label='Valid', align='center')
-            ax[1].bar([i + width for i in x], distribution_test, width=width, label='Test', align='center')
-
-            ax[1].set_xlabel('Categories')
-            ax[1].set_ylabel('Number of images')
-            ax[1].set_xticks(x)
-            ax[1].set_xticklabels(self.categories, rotation=90)
-            ax[1].legend()
-
-            plt.tight_layout()
-
-            # Lưu hình ảnh vào tệp tin
-            plt.savefig(file_path)
-            plt.close()  # Đóng hình ảnh để giải phóng bộ nhớ
-
-
-
-
-
-    
 
 
 
@@ -168,5 +178,6 @@ if __name__ == "__main__":
     # print(properties)
     create_save_dir = ManageSaveDir()
     create_save_dir.create_save_dir()
+    create_save_dir.plot_dataset()
 
 

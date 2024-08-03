@@ -1,7 +1,7 @@
-train: ../train
-valid: ../valid
-test: ../test
+train: /home/chaos/Documents/ChaosAIVision/VGG16-from-scratch-Pytorch/data/train
+valid: /home/chaos/Documents/ChaosAIVision/VGG16-from-scratch-Pytorch/data/valid
+test: /home/chaos/Documents/ChaosAIVision/VGG16-from-scratch-Pytorch/data/valid
 num_classes: 2
-categories: ['fire', 'non_fire']
+categories: ['Fire', 'NoFire']
 pretrain_weight:
-save_dirs: /Users/chaos/Documents/Chaos_working/Chaos_projects/VGG16-from-scratch-Pytorch/data
+save_dirs: /home/chaos/Documents/ChaosAIVision/VGG16-from-scratch-Pytorch/data
