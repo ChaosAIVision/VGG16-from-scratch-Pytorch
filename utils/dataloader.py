@@ -8,8 +8,9 @@ sys.path.append(parent_dir)
 from utils.general import ManagerDataYaml
 from utils.augmentations import transform_input
 
-class CustomDataLoader():
+class CustomDataLoader(DataLoader):
     def __init__(self,data_yaml, mode :str,  batch_size:int, num_workers:int):
+
 
         self.mode = mode
         self.data_yaml = data_yaml

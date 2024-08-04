@@ -33,11 +33,16 @@ class CustomDataset(Dataset):
         return len(self.labels)
 
     def __getitem__(self, item):
+        
         image = cv2.imread(self.image_paths[item])
+        if image is None:
+                raise ValueError(f"Image at path {self.image_paths[item]} could not be loaded.")
         label = self.labels[item]
         if self.transform:
             image = self.transform(image)
         return image, label
+
+
 if __name__ =="__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     parent_dir = os.path.dirname(script_dir)

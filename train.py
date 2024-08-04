@@ -23,7 +23,6 @@ def get_args():
     parser.add_argument("--image_size", '-i', type = int, default= 224)
     parser.add_argument('--epochs', '-e', type= int, default= 100)
     parser.add_argument('--learning_rate', '-l', default= 1e-2)
-    parser.add_argument('--pretrain_weight', '-pr')
     parser.add_argument('--resume', type= bool, default= False, help= 'True if want to resume training')
     return parser.parse_args()  # Cần trả về kết quả từ parser.parse_args()
 
@@ -40,8 +39,8 @@ def train(args):
     model.load_state_dict(state_dict, strict= False)
     model.to(device)
 
-    train_dataloader = CustomDataLoader(args.data_yaml,'train', args.batch_size, num_workers= 6)
-    valid_loader = CustomDataLoader(args.data_yaml,'valid', args.batch_size, num_workers= 6)
+    train_dataloader = CustomDataLoader(args.data_yaml,'train', args.batch_size, num_workers= 4).create_dataloader()
+    valid_loader = CustomDataLoader(args.data_yaml,'valid', args.batch_size, num_workers= 2).create_dataloader()
     optimizer = torch.optim.SGD(model.parameters(), lr = args.learning_rate)
     locate_save_dir = ManageSaveDir(args.data_yaml)
     weights_folder , tensorboard_folder =  locate_save_dir.create_save_dir() # lấy địa chỉ lưu weight và log
@@ -58,7 +57,7 @@ def train(args):
             labels = labels.to(device)
             output =  model(images)
             loss = CrossEntropyLoss(output, labels)
-            progress_bar.set_description(f'Epochs {epoch + 1} / {args.epochs}', loss)
+            progress_bar.set_description(f"Epochs {epoch + 1} / {args.epochs} loss: {loss :0.4f}")
             writer.add_scalar('Train/loss', loss, epoch * len(train_dataloader) + i)
             optimizer.zero_grad()
             loss.backward()
@@ -71,7 +70,7 @@ def train(args):
         all_labels = []
         all_predictions = []
         with torch.no_grad():
-            progress_bar = tqdm(train_dataloader, colour=  'yellow')
+            progress_bar = tqdm(valid_loader, colour=  'yellow')
             for i, (images, labels) in enumerate(progress_bar):
                 images = images.to(device)
                 labels = labels.to(device)
@@ -79,14 +78,15 @@ def train(args):
 
                 prediction = torch.argmax(output, dim= 1)
                 loss = CrossEntropyLoss(output, labels)
+                progress_bar.set_description(f"Epochs {epoch + 1} / {args.epochs} loss: {loss :0.4f}")
                 all_losses.append(loss.item())
                 all_labels.extend(labels.tolist())
                 all_predictions.extend(prediction.tolist())
             avagare_loss = np.mean(all_losses)
-            accuracy  = calculate_accuracy(all_labels, all_predictions, is_all= False)
+            accuracy  = calculate_accuracy(all_labels, all_predictions, is_all= True)
             cm = confusion_matrix(all_labels, all_predictions)
             precision_recall = calculate_precision_recall(cm, categories, 'all')
-            print(f'precision: {precision_recall['average_precision']} recall: {precision_recall['average_recall']} loss:{avagare_loss} accuracy: {accuracy}')
+            print(f"precision: {precision_recall['average_precision']} recall: {precision_recall['average_recall']} loss: {avagare_loss} accuracy: {accuracy}")
             writer.add_scalar("Valid/loss", avagare_loss, epoch)
             writer.add_scalar("Valid/accuracy", accuracy, epoch)
             writer.add_scalar("Valid/precision", precision_recall['average_precision'], epoch)
@@ -97,9 +97,9 @@ def train(args):
                 'epochs' : epoch,
                 'optimizer_state_dict': optimizer.state_dict()
             }
-            torch.save(checkpoint, weights_folder, 'last.pt')
+            torch.save(checkpoint,os.path.join( weights_folder, 'last.pt'))
             if accuracy > best_acc:
-                torch.save(checkpoint, weights_folder, 'best.pt')
+                torch.save(checkpoint,os.path.join( weights_folder, 'best.pt'))
                 best_acc = accuracy
 
             
