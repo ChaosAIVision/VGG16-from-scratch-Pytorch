@@ -7,8 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(parent_dir)
-from train import data_yaml
-
+import numpy as np
 class ManagerDataYaml:
     def __init__(self, yaml_path: str):
         self.yaml_path = yaml_path
@@ -40,7 +39,7 @@ class ManagerDataYaml:
         
 
 class ManageSaveDir():
-    def __init__(self):
+    def __init__(self, data_yaml):
         data_yaml_manage = ManagerDataYaml(data_yaml)
         data_yaml_manage.load_yaml()
         self.save_dir_locations = data_yaml_manage.get_properties('save_dirs')
@@ -61,6 +60,7 @@ class ManageSaveDir():
                 os.makedirs(self.result_dir)
                 os.makedirs(weight_dir)
                 os.makedirs(tensorboard_dir)
+                return weight_dir, tensorboard_dir # Cần return tensorbard_dir để lấy location  ghi log và weight
             else:
                 counter = 1
                 while True:
@@ -71,7 +71,7 @@ class ManageSaveDir():
                         os.makedirs(self.result_dir)
                         os.makedirs(weight_dir)
                         os.makedirs(tensorboard_dir)
-                        break
+                        return weight_dir, tensorboard_dir
                     counter += 1
     def count_items_in_folder(self, folder_path):
         try:
@@ -155,29 +155,41 @@ class ManageSaveDir():
         plt.savefig(file_path)
         plt.close()  # Đóng hình ảnh để giải phóng bộ nhớ
             
+def plot_confusion_matrix(writer, cm, class_names, epoch):
+    """
+    Returns a matplotlib figure containing the plotted confusion matrix.
+
+    Args:
+       cm (array, shape = [n, n]): a confusion matrix of integer classes
+       class_names (array, shape = [n]): String names of the integer classes
+    """
+
+    figure = plt.figure(figsize=(20, 20))
+    # color map: https://matplotlib.org/stable/gallery/color/colormap_reference.html
+    plt.imshow(cm, interpolation='nearest', cmap="cool")
+    plt.title("Confusion matrix")
+    plt.colorbar()
+    tick_marks = np.arange(len(class_names))
+    plt.xticks(tick_marks, class_names, rotation=45)
+    plt.yticks(tick_marks, class_names)
+
+    # Normalize the confusion matrix.
+    cm = np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2)
+
+    # Use white text if squares are dark; otherwise black.
+    threshold = cm.max() / 2.
+
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            color = "white" if cm[i, j] > threshold else "black"
+            plt.text(j, i, cm[i, j], horizontalalignment="center", color=color)
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    writer.add_figure('confusion_matrix', figure, epoch)
 
 
 
-
-
-
-
-
-if __name__ == "__main__":
-    # Create an instance of ManagerDataYaml
-    # manager = ManagerDataYaml('/Users/chaos/Documents/Chaos_working/Chaos_projects/VGG16-from-scratch-Pytorch/data.yaml')
-    
-    # # Load YAML data
-    # data = manager.load_yaml()
-    
-    # # Get specific property
-    # properties = manager.get_properties('train')
-    
-    # # Print results
-    # print(data)
-    # print(properties)
-    create_save_dir = ManageSaveDir()
-    create_save_dir.create_save_dir()
-    create_save_dir.plot_dataset()
 
 

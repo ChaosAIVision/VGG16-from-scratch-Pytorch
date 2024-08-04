@@ -138,7 +138,7 @@ def confusion_matrix(
 
     return np.nan_to_num(cm)
 
-def calculate_precision_recall(cm: np.ndarray, labels: list = None, average: str = None) -> dict:
+def calculate_precision_recall(cm: np.ndarray, categories: list = None, average: str = None) -> dict:
     """
     Calculate precision and recall from confusion matrix.
 
@@ -180,11 +180,11 @@ def calculate_precision_recall(cm: np.ndarray, labels: list = None, average: str
         }
     else:
       
-        if len(labels) != n_classes:
+        if len(categories) != n_classes:
             raise ValueError("Number of labels must match the number of classes in the confusion matrix.")
 
-        precision_dict = {labels[i]: precision[i] for i in range(n_classes)}
-        recall_dict = {labels[i]: recall[i] for i in range(n_classes)}
+        precision_dict = {categories[i]: precision[i] for i in range(n_classes)}
+        recall_dict = {categories[i]: recall[i] for i in range(n_classes)}
 
         return {
             'precision': precision_dict,

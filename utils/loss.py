@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from activations import log_softmax
+from utils.activations import log_softmax
 import time
 
 from torch import Tensor

@@ -6,20 +6,20 @@ import cv2
 import sys
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(parent_dir)
-from general import ManagerDataYaml
-from train import data_yaml
+from utils.general import ManagerDataYaml
 
 class CustomDataset(Dataset):
-    def __init__(self, root, is_train, data_yaml, transform=None):
-        if is_train == 'train':
-            data_path = os.path.join(root, "train")
-        elif is_train == 'valid':
-            data_path = os.path.join(root, "valid")
-        else:
-            data_path = os.path.join(root, 'test')
+    def __init__(self, is_train, data_yaml, transform=None):
+       
         data_yaml_manage = ManagerDataYaml(data_yaml)
         data_yaml_manage.load_yaml()
         self.categories = data_yaml_manage.get_properties(key='categories')
+        if is_train == 'train':
+            data_path = data_yaml_manage.get_properties(key='train')
+        elif is_train == 'valid':
+            data_path = data_yaml_manage.get_properties(key='valid')
+        else:
+            data_path = data_yaml_manage.get_properties(key='test')
         self.image_paths = []
         self.labels = []
         for index, category in enumerate(self.categories):
@@ -42,8 +42,4 @@ if __name__ =="__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     parent_dir = os.path.dirname(script_dir)
 
-    # Thêm thư mục cha vào sys.path
-    data_yaml1 = data_yaml
-    print(data_yaml1)
-    root = ''
-    data = CustomDataset(root,'valid',data_yaml1)
+
