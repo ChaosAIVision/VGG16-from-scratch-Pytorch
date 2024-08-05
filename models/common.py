@@ -1,15 +1,24 @@
 import os
 import torch
-import onnxruntime as ort
-
-# Kiểm tra nếu có CUDA
 cuda_available = torch.cuda.is_available()
 
+onnx_runtime_available = True
+tensorrt_available = True
+
 if cuda_available:
-    import pycuda.driver as cuda
-    import pycuda.autoinit
-    import pycuda.tools
-    import tensorrt as trt
+    try:
+        import pycuda.driver as cuda
+        import pycuda.autoinit
+        import pycuda.tools
+        import tensorrt as trt
+    except ImportError:
+        tensorrt_available = False
+
+    try:
+        import onnxruntime as ort
+    except ImportError:
+        onnx_runtime_available = False
+
 
 from vgg16custom import vgg
 from utils.general import ManagerDataYaml
@@ -44,11 +53,23 @@ class ModelManagement():
                 if extension == '.pt':
                     self.format = 'pytorch'
                 elif extension == '.onnx':
-                    self.format = 'onnx'
-                elif extension == '.trt' or '.engine':
-                    self.format =  'engine'
-            except:
-                 print(f'Cannot support {extension} format, we support only .pt .onnx and .trt .engine format')
+                    if onnx_runtime_available:
+                        self.format = 'onnx'
+                    else:
+                        raise ImportError("ONNX Runtime is not available")
+                elif extension == '.trt' or extension == '.engine':
+                    if tensorrt_available:
+                        self.format = 'engine'
+                    else:
+                        raise ImportError("TensorRT is not available")
+            except ImportError as e:
+                print(f'Cannot support {extension} format due to: {e}')
+            except Exception as e:
+                print(f'Cannot support {extension} format due to unexpected error: {e}')
+    
+    def get_format(self):
+        return self.format
+
     def load_pytorch_model(self):
         print('Your model must be save with three dictionaries: model_state_dict to save model parameters, epochs to save epochs and optimizer_state_dict to save parameters of optimizers')
         checkpoint = torch.load(self.weights_path)
@@ -56,7 +77,7 @@ class ModelManagement():
         return self.model
     
     def load_tensorrt_model(self):
-        if not cuda_available:
+        if not tensorrt_available:
             raise RuntimeError("CUDA is not available. Cannot load TensorRT model.")
         
         logger = trt.Logger(trt.Logger.WARNING)
@@ -72,9 +93,12 @@ class ModelManagement():
         return self.model
     
     def load_onnx_model(self):
+        if not onnx_runtime_available:
+            raise RuntimeError("ONNX Runtime is not available on this machine")
         providers = ['CUDAExecutionProvider', 'CPUExecutionProvider'] if cuda_available else ['CPUExecutionProvider']
         self.model = ort.InferenceSession(self.weights_path, providers=providers)
         return self.model
+    
 
     def loading_weight(self):
         self.check_format()
