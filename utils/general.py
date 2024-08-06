@@ -1,4 +1,8 @@
 import yaml
+import numpy as np
+from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
+from PIL import Image
+import io
 import os 
 import sys
 import matplotlib.pyplot as plt
@@ -73,6 +77,8 @@ class ManageSaveDir():
                         os.makedirs(tensorboard_dir)
                         return weight_dir, tensorboard_dir
                     counter += 1
+    def get_save_dir_path(self):
+        return self.result_dir
     def count_items_in_folder(self, folder_path):
         try:
             items = os.listdir(folder_path)
@@ -170,8 +176,8 @@ def plot_confusion_matrix(writer, cm, class_names, epoch):
     plt.title("Confusion matrix")
     plt.colorbar()
     tick_marks = np.arange(len(class_names))
-    plt.xticks(tick_marks, class_names, rotation=45)
-    plt.yticks(tick_marks, class_names)
+    plt.xticks(tick_marks, class_names, rotation=45, fontsize=14)
+    plt.yticks(tick_marks, class_names, fontsize=14)
 
     # Normalize the confusion matrix.
     cm = np.around(cm.astype('float') / cm.sum(axis=1)[:, np.newaxis], decimals=2)
@@ -182,14 +188,88 @@ def plot_confusion_matrix(writer, cm, class_names, epoch):
     for i in range(cm.shape[0]):
         for j in range(cm.shape[1]):
             color = "white" if cm[i, j] > threshold else "black"
-            plt.text(j, i, cm[i, j], horizontalalignment="center", color=color)
+            plt.text(j, i, f'{cm[i, j]:.2f}', horizontalalignment="center", color=color,
+                     fontsize=20, fontweight='bold')
 
     plt.tight_layout()
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
+    plt.ylabel('True label', fontsize=16)
+    plt.xlabel('Predicted label', fontsize=16)
     writer.add_figure('confusion_matrix', figure, epoch)
 
 
 
+import os
+import io
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 
+def save_plots_from_tensorboard(tensorboard_folder, output_image_folder):
+    # Khởi tạo EventAccumulator để đọc các tệp sự kiện trong thư mục
+    event_accumulator = EventAccumulator(tensorboard_folder)
+    event_accumulator.Reload()
 
+    # Lấy tất cả các tags từ TensorBoard
+    scalar_tags = event_accumulator.Tags()['scalars']
+    
+    # Lấy dữ liệu cho các scalar tags
+    def get_scalar_data(tag):
+        events = event_accumulator.Scalars(tag)
+        steps = [event.step for event in events]
+        values = [event.value for event in events]
+        return steps, values
+
+    # Tạo tấm ảnh đầu tiên với 8 biểu đồ
+    plt.figure(figsize=(16, 8))
+    
+    # Các tag cho huấn luyện
+    train_tags = ['Train/loss', 'Train/accuracy', 'Train/precision', 'Train/recall']
+    # Các tag cho kiểm tra
+    valid_tags = ['Valid/loss', 'Valid/accuracy', 'Valid/precision', 'Valid/recall']
+
+    # Vẽ các biểu đồ cho tập huấn luyện
+    for i, tag in enumerate(train_tags):
+        plt.subplot(2, 4, i + 1)
+        steps, values = get_scalar_data(tag)
+        plt.plot(steps, values)
+        plt.title(tag)
+        plt.xlabel('Steps')
+        plt.ylabel('Value')
+
+    # Vẽ các biểu đồ cho tập kiểm tra
+    for i, tag in enumerate(valid_tags):
+        plt.subplot(2, 4, i + 5)
+        steps, values = get_scalar_data(tag)
+        plt.plot(steps, values)
+        plt.title(tag)
+        plt.xlabel('Steps')
+        plt.ylabel('Value')
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_image_folder, 'training_and_validation_plots.png'))
+    plt.close()
+
+    # Lấy dữ liệu ma trận nhầm lẫn
+    confusion_matrix_tag = 'confusion_matrix'
+    image_events = event_accumulator.Images(confusion_matrix_tag)
+
+    if image_events:
+        # Lấy bước cuối cùng từ các sự kiện hình ảnh
+        last_step = max(event.step for event in image_events)
+        
+        # Lọc sự kiện hình ảnh với bước cuối cùng
+        for event in reversed(image_events):
+            if event.step == last_step:
+                image_string = event.encoded_image_string
+                image = Image.open(io.BytesIO(image_string))
+                
+                plt.figure(figsize=(8, 8))
+                plt.imshow(image)
+                plt.title('Confusion Matrix')
+                plt.axis('off')
+                plt.savefig(os.path.join(output_image_folder, 'confusion_matrix.png'))
+                plt.close()
+                break
+    else:
+        print("No confusion matrix found in TensorBoard logs.")

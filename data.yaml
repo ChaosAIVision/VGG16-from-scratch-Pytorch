@@ -3,5 +3,5 @@ valid: /home/chaos/Documents/ChaosAIVision/fire/valid
 test:  /home/chaos/Documents/ChaosAIVision/fire/valid
 num_classes: 2
 categories: ['Fire', 'NoFire']
-pretrain_weight: /home/chaos/Documents/ChaosAIVision/fire/vgg16-397923af.pth
-save_dirs: /home/chaos/Documents/ChaosAIVision/fire/result
+pretrain_weight:  /home/chaos/Documents/ChaosAIVision/fire/vgg16-397923af.pth
+save_dirs: /home/chaos/Documents/ChaosAIVision/VGG16-from-scratch-Pytorch/data

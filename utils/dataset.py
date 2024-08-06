@@ -7,6 +7,7 @@ import sys
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(parent_dir)
 from utils.general import ManagerDataYaml
+from utils.augmentations import transform_labels_to_one_hot
 
 class CustomDataset(Dataset):
     def __init__(self, is_train, data_yaml, transform=None):
@@ -14,6 +15,8 @@ class CustomDataset(Dataset):
         data_yaml_manage = ManagerDataYaml(data_yaml)
         data_yaml_manage.load_yaml()
         self.categories = data_yaml_manage.get_properties(key='categories')
+        self.num_classes = data_yaml_manage.get_properties(key='num_classes')
+
         if is_train == 'train':
             data_path = data_yaml_manage.get_properties(key='train')
         elif is_train == 'valid':
@@ -40,6 +43,7 @@ class CustomDataset(Dataset):
         label = self.labels[item]
         if self.transform:
             image = self.transform(image)
+        label = transform_labels_to_one_hot(label,self.num_classes )
         return image, label
 
 
