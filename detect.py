@@ -13,17 +13,16 @@ def get_args():
     parser.add_argument('--data_yaml', "-d", type= str, help= 'Path to dataset')
     parser.add_argument('--batch_size', '-b', type = int, help = 'input batch_size', default= None)
     parser.add_argument("--image_size", '-i', type = int, default= 224)
-    parser.add_argument("--batch_norm", type = bool, default= None)
+    parser.add_argument("--batch_norm", type = bool, default= False)
     parser.add_argument("--source", type = str)
     parser.add_argument("--weights", type = str)
     parser.add_argument("--model_name", '-name', type = str)
-    parser.add_argument("--format",  type = str)
+    parser.add_argument("--format",  type = str, help= " support pt is pytorch, onnx and tensorrt")
     parser.add_argument("--version", '-v', type = str)
     parser.add_argument("--save_dir", type = str, default= run_path)
-    parser.add_argument('--save', type= bool, default= False  )
-    parser.add_argument('--plot', type= bool, default= False  )
+    parser.add_argument('--save', action= 'store_true'  )
+    parser.add_argument('--plot', action= 'store_true'  )
     parser.add_argument("--task", type = str, help= ' task = classify or task = detect')
-    parser.add_argument('--classes', type= bool, default= classes  )
 
 
 
@@ -74,6 +73,11 @@ class Detect():
         self.image = None
         self.video = None
         self.webcam = None
+        data_yaml_manage = ManagerDataYaml(args.data_yaml)
+        data_yaml_manage.load_yaml()
+        self.classes = data_yaml_manage.get_properties('categories')
+        self.save_dir = args.save_dir
+        
 
     def read_image(self):
         self.image = cv2.imread(args.source)
@@ -103,7 +107,7 @@ class Detect():
     
     def process_image(self):
         self.read_image()
-        self.image, _, _ = inferences_frame(args, self.model, args.classes, self.image)
+        self.image, _, _ = inferences_frame(args, self.model, self.classes, self.image)
         if args.save:
             self.save_image()
         if args.plot:
@@ -116,23 +120,10 @@ class Detect():
 
 
 
-    
-
-
-
-        
-
-
-
-
-
 
 if __name__ == ("__main__"):
     run_path = os.path.join(os.getcwd(), 'runs')
     args = get_args()
-    data_yaml_manage = ManagerDataYaml(args.data_yaml)
-    data_yaml_manage.load_yaml()
-    classes = data_yaml_manage.get_properties(key='categories')
     detect  = Detect(args)
     process_image = detect.process_image()
 

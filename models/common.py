@@ -20,12 +20,12 @@ if cuda_available:
         onnx_runtime_available = False
 
 
-from vgg16custom import vgg
+from models.vgg16custom import vgg
 from utils.general import ManagerDataYaml
 
 
 class ModelManagement():
-    def __init__(self, name:str, version:str, weights_path:str, data_yaml: str,  batch_norm: bool = None):
+    def __init__(self, name:str, version:str, weights_path:str, data_yaml: str,  batch_norm: bool):
         self.name = name
         self.version = version
         self.format = None
@@ -37,14 +37,15 @@ class ModelManagement():
         self.num_classes = data_yaml_manage.get_properties(key='num_classes')
 
     def model_init_structure(self):
+
         try:
               # FOR MODEL VGG16
               if self.name == "vgg16":
-                   self.model = vgg(self.version , self.num_classes, batch_norm= self.batch_norm)
-                   return self.model
+                self.model = vgg(self.version , batch_norm= False, num_classes= self.num_classes)
+                return self.model
                    
         except:
-             print('we are not support {self.name} ')
+             print(f'we are not support {self.name} ')
          
 
     def check_format(self):
