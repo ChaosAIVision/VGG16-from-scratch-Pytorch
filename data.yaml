@@ -1,7 +1,7 @@
-train: /content/drive/MyDrive/natural_scenes/train
-valid: /content/drive/MyDrive/natural_scenes/valid
+train: /home/chaos/Documents/ChaosAIVision/fire/train
+valid: /home/chaos/Documents/ChaosAIVision/fire/valid
 test:  /content/drive/MyDrive/natural_scenes/test
-num_classes: 6
-categories: ['buildings', 'forest', 'glacier', 'mountain', 'sea', 'street']
+num_classes: 2
+categories: ['Fire', 'NoFire']
 pretrain_weight: /content/VGG16-from-scratch-Pytorch/vgg16-397923af.pth
-save_dirs: /content/drive/MyDrive/fire
+save_dirs: /home/chaos/Documents/ChaosAIVision/temp_folder
