@@ -47,29 +47,30 @@ def inferences_frame(args, model, classes, image):
         score = predicted_prob[0].item() * 100
         label = classes[predicted_class[0].item()]
 
-    # Vẽ nhãn và điểm tin cậy lên ảnh
+    # Vẽ nhãn và đểm tin cậy lên ảnh
     image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
     label_text = f"{label} with confidence score of {score:.2f}%"
+
+    image_height, image_width = image_bgr.shape[:2]
+    font_scale = image_width / 1000  
+    thickness = int(image_width / 200)  
+
     font = cv2.FONT_HERSHEY_SIMPLEX
-    text_size = cv2.getTextSize(label_text, font, 1, 2)[0]
-    text_x = (image_bgr.shape[1] - text_size[0]) // 2
-    text_y = text_size[1] + 10
-    cv2.putText(image_bgr, label_text, (text_x, text_y), font, 1, (0, 0, 255), 2)
+    text_size = cv2.getTextSize(label_text, font, font_scale, thickness)[0]
+    text_x = (image_width - text_size[0]) // 2
+    text_y = int(text_size[1] * 1.5) 
+
+    # Vẽ văn bản lên ảnh
+    cv2.putText(image_bgr, label_text, (text_x, text_y), font, font_scale, (0, 0, 255), thickness)
 
     return image_bgr, score, label
+
 
 
 class Detect():
     def __init__(self, args):
         model_management = ModelManagement(args.model_name, args.version, args.weights, args.data_yaml, args.batch_norm)
-        try:
-            self.model = model_management.loading_weight()
-        except Exception as e:
-            print("An error occurred while loading the model weight:")
-            print(str(e))
-            # Optionally, you can print the traceback to get more details
-            traceback.print_exc()
-
+        self.model = model_management.loading_weight()
         self.image = None
         self.video = None
         self.webcam = None

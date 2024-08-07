@@ -13,8 +13,9 @@ from utils.general import ManagerDataYaml, plot_confusion_matrix, ManageSaveDir,
 from utils.dataloader import CustomDataLoader
 from utils.loss import CrossEntropyLoss
 from utils.metrics import  calculate_accuracy, calculate_precision_recall, confusion_matrix 
-
-# warnings.filterwarnings('ignore')
+import warnings
+from utils.augmentations import transform_labels_to_one_hot
+warnings.filterwarnings('ignore')
 
 def get_args():
     parser = argparse.ArgumentParser(description="Train VGG16 from scratch")
@@ -38,24 +39,26 @@ def train(args):
     num_classes = data_yaml_manage.get_properties(key='num_classes')
     model =  vgg('D', batch_norm=False, num_classes=num_classes)
     optimizer = torch.optim.SGD(model.parameters(), lr = args.learning_rate, momentum= 0.9)
+    # optimizer = torch.optim.AdamW(model.parameters(), lr = args.learning_rate, weight_decay=1e-2 )
+
     best_acc = - 100 # create  logic for save weight
     if args.pretrain == True:
         state_dict = torch.load(pretrain_weight)
         model.load_state_dict(state_dict, strict= False)
+        print('load weight pretrain sucessfully !')
     if args.resume == True:
         checkpoint = torch.load(pretrain_weight)
         model.load_state_dict(checkpoint['model_state_dict'])
         start_epochs = checkpoint['epochs']
         best_acc = checkpoint['best_accuracy']
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        print('load weight resume sucessfully !')
+
     else:
         start_epochs = 0
 
 
-
     model.to(device)
-
-
     train_dataloader = CustomDataLoader(args.data_yaml,'train', args.batch_size, num_workers= 4).create_dataloader()
     valid_loader = CustomDataLoader(args.data_yaml,'valid', args.batch_size, num_workers= 2).create_dataloader()
     locate_save_dir = ManageSaveDir(args.data_yaml)
@@ -73,8 +76,13 @@ def train(args):
         all_train_predictions = []
         progress_bar = tqdm(train_dataloader, colour=  'green')
         for i, (images, labels) in enumerate(progress_bar):
+            # labels =  transform_labels_to_one_hot(labels,num_classes )
             images = images.to(device)
             labels = labels.to(device)
+            if torch.any(torch.isnan(images)) or torch.any(torch.isinf(images)) or \
+           torch.any(torch.isnan(labels)) or torch.any(torch.isinf(labels)):
+                continue
+
             output =  model(images)
             prediction_train = torch.argmax(output, dim= 1)
             interger_labels = torch.argmax(labels, dim= 1)
@@ -83,13 +91,15 @@ def train(args):
             all_train_labels.extend(interger_labels.tolist())
             all_train_predictions.extend(prediction_train.tolist())
             progress_bar.set_description(f"Epochs {epoch + 1}/{args.epochs} loss: {loss :0.4f}")
-            writer.add_scalar('Train/loss', loss, epoch * len(train_dataloader) + i)
+            # writer.add_scalar('Train/loss', loss, epoch * len(train_dataloader) + i)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+        avagare__train_loss = np.mean(all_train_losses)
         accuracy_train  = calculate_accuracy(all_train_labels, all_train_predictions, is_all= True)
         cm_train = confusion_matrix(all_train_labels, all_train_predictions)
         precision_recall_train = calculate_precision_recall(cm_train, categories, 'all')
+        writer.add_scalar("Train/mean_loss", avagare__train_loss, epoch)
         writer.add_scalar("Train/accuracy", accuracy_train, epoch)
         writer.add_scalar("Train/precision", precision_recall_train['average_precision'], epoch)
         writer.add_scalar("Train/recall", precision_recall_train['average_recall'], epoch)
@@ -108,6 +118,9 @@ def train(args):
             for i, (images, labels) in enumerate(progress_bar):
                 images = images.to(device)
                 labels = labels.to(device)
+                if torch.any(torch.isnan(images)) or torch.any(torch.isinf(images)) or \
+                torch.any(torch.isnan(labels)) or torch.any(torch.isinf(labels)):
+                    continue
                 output = model(images)
                 prediction = torch.argmax(output, dim= 1)
                 interger_labels = torch.argmax(labels, dim= 1)
@@ -116,7 +129,7 @@ def train(args):
                 all_losses.append(loss.item())
                 all_labels.extend(interger_labels.tolist())
                 all_predictions.extend(prediction.tolist())
-                writer.add_scalar('Valid/loss', loss, epoch * len(valid_loader) + i)
+                # writer.add_scalar('Valid/loss', loss, epoch * len(valid_loader) + i)
 
 
             avagare_loss = np.mean(all_losses)
@@ -125,6 +138,7 @@ def train(args):
             precision_recall = calculate_precision_recall(cm, categories, 'all')
             print(f"precision: {precision_recall['average_precision' ] :0.4f}  recall: {precision_recall['average_recall']:0.4f} loss: {avagare_loss :0.4f} accuracy: {accuracy :0.4f}")
             writer.add_scalar("Valid/accuracy", accuracy, epoch)
+            writer.add_scalar("Valid/mean_loss", avagare_loss, epoch)
             writer.add_scalar("Valid/precision", precision_recall['average_precision'], epoch)
             writer.add_scalar("Valid/recall", precision_recall['average_recall'], epoch)
             plot_confusion_matrix(writer, cm, categories, epoch)
@@ -143,11 +157,6 @@ def train(args):
 
 
         
-
-
-
-
-
 
 
 if __name__ == "__main__":
