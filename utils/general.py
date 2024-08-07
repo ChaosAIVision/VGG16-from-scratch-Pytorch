@@ -113,10 +113,11 @@ class ManageSaveDir():
         
         num_image_train = sum(distribution_train)
         num_image_valid = sum(distribution_valid)
-        if self.test_dataset is not None:
+        try:
             distribution_test = self.count_distribution_labels('test')
             num_image_test = sum(distribution_test)
-        else:
+        except:
+            distribution_test =0
             num_image_test = 0
 
         # Tổng hợp số lượng hình ảnh cho mỗi danh mục
