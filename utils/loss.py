@@ -6,7 +6,7 @@ import time
 from torch import Tensor
 
 def CrossEntropyLoss(outputs: Tensor, targets: Tensor) -> Tensor:
-    if targets.dim() != 2 or targets.shape[1] != outputs.shape[1]:
+    if targets.shape[1] != outputs.shape[1]:
         raise ValueError("Targets must be one-hot encoded with the same number of columns as classes in outputs")
     log_softmax_outputs = torch.nn.functional.log_softmax(outputs, dim=1)    
     loss = -torch.sum(log_softmax_outputs * targets) / outputs.shape[0]

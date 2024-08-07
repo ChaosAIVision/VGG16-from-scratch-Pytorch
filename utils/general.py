@@ -117,7 +117,7 @@ class ManageSaveDir():
             distribution_test = self.count_distribution_labels('test')
             num_image_test = sum(distribution_test)
         except:
-            distribution_test =0
+            distribution_test = [0] * len(self.categories)  # Sửa tại đây
             num_image_test = 0
 
         # Tổng hợp số lượng hình ảnh cho mỗi danh mục

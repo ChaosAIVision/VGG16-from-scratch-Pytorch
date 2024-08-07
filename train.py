@@ -35,7 +35,8 @@ def train(args):
     data_yaml_manage.load_yaml()
     pretrain_weight = data_yaml_manage.get_properties(key='pretrain_weight')
     categories = data_yaml_manage.get_properties(key='categories')
-    model =  vgg('D', batch_norm=False, num_classes=2)
+    num_classes = data_yaml_manage.get_properties(key='num_classes')
+    model =  vgg('D', batch_norm=False, num_classes=num_classes)
     optimizer = torch.optim.SGD(model.parameters(), lr = args.learning_rate, momentum= 0.9)
     best_acc = - 100 # create  logic for save weight
     if args.pretrain == True:
