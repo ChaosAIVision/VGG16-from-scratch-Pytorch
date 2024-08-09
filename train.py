@@ -26,6 +26,7 @@ def get_args():
     parser.add_argument('--learning_rate', '-l', type= float, default= 1e-2)
     parser.add_argument('--resume', action='store_true', help='True if want to resume training')
     parser.add_argument('--pretrain', action='store_true', help='True if want to use pre-trained weights')
+    parser.add_argument('--stop_mse_loss', '-st', type= int, default= 15, help= ' num epochs to stop mse loss and change to Cross Entropy loss')
     return parser.parse_args()  # Cần trả về kết quả từ parser.parse_args()
 
 
@@ -37,7 +38,7 @@ def train(args):
     pretrain_weight = data_yaml_manage.get_properties(key='pretrain_weight')
     categories = data_yaml_manage.get_properties(key='categories')
     num_classes = data_yaml_manage.get_properties(key='num_classes')
-    model =  vgg('D', batch_norm=False, num_classes=num_classes)
+    model =  vgg('A', batch_norm=False, num_classes=num_classes)
     optimizer = torch.optim.SGD(model.parameters(), lr = args.learning_rate, momentum= 0.9)
     # optimizer = torch.optim.AdamW(model.parameters(), lr = args.learning_rate, weight_decay=1e-2 )
 
@@ -58,6 +59,7 @@ def train(args):
         start_epochs = 0
 
 
+    model = torch.compile(model)
     model.to(device)
     train_dataloader = CustomDataLoader(args.data_yaml,'train', args.batch_size, num_workers= 4).create_dataloader()
     valid_loader = CustomDataLoader(args.data_yaml,'valid', args.batch_size, num_workers= 2).create_dataloader()
@@ -66,7 +68,8 @@ def train(args):
     save_dir = locate_save_dir.get_save_dir_path()
     locate_save_dir.plot_dataset() # plot distribution of dataset
     writer = SummaryWriter(tensorboard_folder)
-
+    mse_loss = torch.nn.MSELoss(reduction= 'sum')
+    scaler = torch.cuda.amp.GradScaler()
     # TRAIN
     print(f'result wil save at {save_dir}')
     for epoch in range(start_epochs, args.epochs):
@@ -82,19 +85,26 @@ def train(args):
             if torch.any(torch.isnan(images)) or torch.any(torch.isinf(images)) or \
            torch.any(torch.isnan(labels)) or torch.any(torch.isinf(labels)):
                 continue
+            optimizer.zero_grad()
+            with torch.cuda.amp.autocast():
+                output =  model(images)
+                prediction_train = torch.argmax(output, dim= 1)
+                interger_labels = torch.argmax(labels, dim= 1)
+                if epoch < args.stop_mse_loss: # Use loss MSE when start trainning help model optimizer bettter 
+                    output = output.float()
+                    labels = labels.float()
 
-            output =  model(images)
-            prediction_train = torch.argmax(output, dim= 1)
-            interger_labels = torch.argmax(labels, dim= 1)
-            loss = CrossEntropyLoss(output, labels)
+                    loss = mse_loss (output, labels)
+                else:
+                    loss = CrossEntropyLoss(output, labels)
             all_train_losses.append(loss.item())
             all_train_labels.extend(interger_labels.tolist())
             all_train_predictions.extend(prediction_train.tolist())
             progress_bar.set_description(f"Epochs {epoch + 1}/{args.epochs} loss: {loss :0.4f}")
             # writer.add_scalar('Train/loss', loss, epoch * len(train_dataloader) + i)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
         avagare__train_loss = np.mean(all_train_losses)
         accuracy_train  = calculate_accuracy(all_train_labels, all_train_predictions, is_all= True)
         cm_train = confusion_matrix(all_train_labels, all_train_predictions)
@@ -122,9 +132,15 @@ def train(args):
                 torch.any(torch.isnan(labels)) or torch.any(torch.isinf(labels)):
                     continue
                 output = model(images)
-                prediction = torch.argmax(output, dim= 1)
-                interger_labels = torch.argmax(labels, dim= 1)
-                loss = CrossEntropyLoss(output, labels)
+                with torch.cuda.amp.autocast():
+                    prediction = torch.argmax(output, dim= 1)
+                    interger_labels = torch.argmax(labels, dim= 1)
+                    if epoch < args.stop_mse_loss: # Use loss MSE when start trainning help model optimizer bettter 
+                        output = output.float()
+                        labels = labels.float()
+                        loss = mse_loss (output, labels)
+                    else:
+                        loss = CrossEntropyLoss(output, labels)
                 progress_bar.set_description(f"Epochs {epoch + 1}/{args.epochs} loss: {loss :0.4f}")
                 all_losses.append(loss.item())
                 all_labels.extend(interger_labels.tolist())
