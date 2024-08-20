@@ -9,22 +9,27 @@ import shutil
 import matplotlib.pyplot as plt
 # from utils.general import plot_confusion_matrix
 from models.vgg16custom import vgg
+from models.yolov1_classify import Yolov1
 from utils.general import ManagerDataYaml, plot_confusion_matrix, ManageSaveDir, save_plots_from_tensorboard
 from utils.dataloader import CustomDataLoader
-from utils.loss import CrossEntropyLoss
-from utils.metrics import  calculate_accuracy, calculate_precision_recall, confusion_matrix 
+from utils.loss import CrossEntropyLoss, FocalLoss
 
-# warnings.filterwarnings('ignore')
+
+from utils.metrics import  calculate_accuracy, calculate_precision_recall, confusion_matrix 
+import warnings
+from utils.augmentations import transform_labels_to_one_hot
+warnings.filterwarnings('ignore')
 
 def get_args():
-    parser = argparse.ArgumentParser(description="Train VGG16 from scratch")
+    parser = argparse.ArgumentParser(description="Train YOLOv1 classify from scratch")
     parser.add_argument('--data_yaml', "-d", type= str, help= 'Path to dataset', default= '/Users/chaos/Documents/Chaos_working/Chaos_projects/VGG16-from-scratch-Pytorch/data.yaml')
     parser.add_argument('--batch_size', '-b', type = int, help = 'input batch_size')
     parser.add_argument("--image_size", '-i', type = int, default= 224)
     parser.add_argument('--epochs', '-e', type= int, default= 100)
-    parser.add_argument('--learning_rate', '-l', type= float, default= 1e-2)
+    parser.add_argument('--learning_rate', '-l', type= float, default= 1e-4)
     parser.add_argument('--resume', action='store_true', help='True if want to resume training')
     parser.add_argument('--pretrain', action='store_true', help='True if want to use pre-trained weights')
+    parser.add_argument('--stop_mse_loss', '-st', type= int, default= 0, help= ' num epochs to stop mse loss and change to Cross Entropy loss')
     return parser.parse_args()  # Cần trả về kết quả từ parser.parse_args()
 
 
@@ -36,26 +41,44 @@ def train(args):
     pretrain_weight = data_yaml_manage.get_properties(key='pretrain_weight')
     categories = data_yaml_manage.get_properties(key='categories')
     num_classes = data_yaml_manage.get_properties(key='num_classes')
-    model =  vgg('D', batch_norm=False, num_classes=num_classes)
+    # model =  vgg('A', batch_norm=False, num_classes=num_classes)
+    S, B, C = 7, 2 ,3
+    model = Yolov1(split_size= S, num_boxes= B, num_classes= C)
+    ################################################################################################
+    pretrain_weight = '/home/chaos/Documents/ChaosAIVision/temp_folder/yolo_backbone/weights/last.pt'
+    checkpoint = torch.load(pretrain_weight)
+    checkpoint_state_dict = checkpoint['model_state_dict']
+
+    checkpoint_state_dict.pop('_orig_mod.fcs.1.weight')
+    checkpoint_state_dict.pop('_orig_mod.fcs.1.bias')
+    model = torch.compile(model)
+
+    model.load_state_dict(checkpoint['model_state_dict'], strict= False)
+    ################################################################################################
     optimizer = torch.optim.SGD(model.parameters(), lr = args.learning_rate, momentum= 0.9)
+    # optimizer = torch.optim.Adam(model.parameters(), lr = args.learning_rate, weight_decay=1e-2 )
+    focal_loss = FocalLoss(alpha=0.25, gamma=2.0, reduction='sum')
+
+
     best_acc = - 100 # create  logic for save weight
     if args.pretrain == True:
         state_dict = torch.load(pretrain_weight)
         model.load_state_dict(state_dict, strict= False)
+        print('load weight pretrain sucessfully !')
     if args.resume == True:
         checkpoint = torch.load(pretrain_weight)
         model.load_state_dict(checkpoint['model_state_dict'])
         start_epochs = checkpoint['epochs']
         best_acc = checkpoint['best_accuracy']
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        print('load weight resume sucessfully !')
+
     else:
         start_epochs = 0
 
 
-
+    # model = torch.compile(model)
     model.to(device)
-
-
     train_dataloader = CustomDataLoader(args.data_yaml,'train', args.batch_size, num_workers= 4).create_dataloader()
     valid_loader = CustomDataLoader(args.data_yaml,'valid', args.batch_size, num_workers= 2).create_dataloader()
     locate_save_dir = ManageSaveDir(args.data_yaml)
@@ -63,7 +86,8 @@ def train(args):
     save_dir = locate_save_dir.get_save_dir_path()
     locate_save_dir.plot_dataset() # plot distribution of dataset
     writer = SummaryWriter(tensorboard_folder)
-
+    mse_loss = torch.nn.MSELoss(reduction= 'sum')
+    scaler = torch.cuda.amp.GradScaler()
     # TRAIN
     print(f'result wil save at {save_dir}')
     for epoch in range(start_epochs, args.epochs):
@@ -73,23 +97,37 @@ def train(args):
         all_train_predictions = []
         progress_bar = tqdm(train_dataloader, colour=  'green')
         for i, (images, labels) in enumerate(progress_bar):
+            # labels =  transform_labels_to_one_hot(labels,num_classes )
             images = images.to(device)
             labels = labels.to(device)
-            output =  model(images)
-            prediction_train = torch.argmax(output, dim= 1)
-            interger_labels = torch.argmax(labels, dim= 1)
-            loss = CrossEntropyLoss(output, labels)
+            if torch.any(torch.isnan(images)) or torch.any(torch.isinf(images)) or \
+           torch.any(torch.isnan(labels)) or torch.any(torch.isinf(labels)):
+                continue
+            optimizer.zero_grad()
+            with torch.cuda.amp.autocast():
+                output =  model(images)
+                prediction_train = torch.argmax(output, dim= 1)
+                interger_labels = torch.argmax(labels, dim= 1)
+                if epoch < args.stop_mse_loss: # Use loss MSE when start trainning help model optimizer bettter 
+                    output = output.float()
+                    labels = labels.float()
+
+                    loss = mse_loss (output, labels)
+                else:
+                    loss = focal_loss(output, labels)
             all_train_losses.append(loss.item())
             all_train_labels.extend(interger_labels.tolist())
             all_train_predictions.extend(prediction_train.tolist())
             progress_bar.set_description(f"Epochs {epoch + 1}/{args.epochs} loss: {loss :0.4f}")
-            writer.add_scalar('Train/loss', loss, epoch * len(train_dataloader) + i)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+            # writer.add_scalar('Train/loss', loss, epoch * len(train_dataloader) + i)
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        avagare__train_loss = np.mean(all_train_losses)
         accuracy_train  = calculate_accuracy(all_train_labels, all_train_predictions, is_all= True)
         cm_train = confusion_matrix(all_train_labels, all_train_predictions)
         precision_recall_train = calculate_precision_recall(cm_train, categories, 'all')
+        writer.add_scalar("Train/mean_loss", avagare__train_loss, epoch)
         writer.add_scalar("Train/accuracy", accuracy_train, epoch)
         writer.add_scalar("Train/precision", precision_recall_train['average_precision'], epoch)
         writer.add_scalar("Train/recall", precision_recall_train['average_recall'], epoch)
@@ -108,15 +146,24 @@ def train(args):
             for i, (images, labels) in enumerate(progress_bar):
                 images = images.to(device)
                 labels = labels.to(device)
+                if torch.any(torch.isnan(images)) or torch.any(torch.isinf(images)) or \
+                torch.any(torch.isnan(labels)) or torch.any(torch.isinf(labels)):
+                    continue
                 output = model(images)
-                prediction = torch.argmax(output, dim= 1)
-                interger_labels = torch.argmax(labels, dim= 1)
-                loss = CrossEntropyLoss(output, labels)
+                with torch.cuda.amp.autocast():
+                    prediction = torch.argmax(output, dim= 1)
+                    interger_labels = torch.argmax(labels, dim= 1)
+                    if epoch < args.stop_mse_loss: # Use loss MSE when start trainning help model optimizer bettter 
+                        output = output.float()
+                        labels = labels.float()
+                        loss = mse_loss (output, labels)
+                    else:
+                        loss = focal_loss(output, labels)
                 progress_bar.set_description(f"Epochs {epoch + 1}/{args.epochs} loss: {loss :0.4f}")
                 all_losses.append(loss.item())
                 all_labels.extend(interger_labels.tolist())
                 all_predictions.extend(prediction.tolist())
-                writer.add_scalar('Valid/loss', loss, epoch * len(valid_loader) + i)
+                # writer.add_scalar('Valid/loss', loss, epoch * len(valid_loader) + i)
 
 
             avagare_loss = np.mean(all_losses)
@@ -125,15 +172,18 @@ def train(args):
             precision_recall = calculate_precision_recall(cm, categories, 'all')
             print(f"precision: {precision_recall['average_precision' ] :0.4f}  recall: {precision_recall['average_recall']:0.4f} loss: {avagare_loss :0.4f} accuracy: {accuracy :0.4f}")
             writer.add_scalar("Valid/accuracy", accuracy, epoch)
+            writer.add_scalar("Valid/mean_loss", avagare_loss, epoch)
             writer.add_scalar("Valid/precision", precision_recall['average_precision'], epoch)
             writer.add_scalar("Valid/recall", precision_recall['average_recall'], epoch)
             plot_confusion_matrix(writer, cm, categories, epoch)
+            # checkpoint = {
+            #     'model_state_dict': model.state_dict(),
+            #     'epochs' : epoch,
+            #     'optimizer_state_dict': optimizer.state_dict(),
+            #     'best_accuracy': best_acc
+            # }
             checkpoint = {
-                'model_state_dict': model.state_dict(),
-                'epochs' : epoch,
-                'optimizer_state_dict': optimizer.state_dict(),
-                'best_accuracy': best_acc
-            }
+                'model_state_dict': model.state_dict()}
             torch.save(checkpoint,os.path.join( weights_folder, 'last.pt'))
             if accuracy > best_acc:
                 torch.save(checkpoint,os.path.join( weights_folder, 'best.pt'))
@@ -143,11 +193,6 @@ def train(args):
 
 
         
-
-
-
-
-
 
 
 if __name__ == "__main__":

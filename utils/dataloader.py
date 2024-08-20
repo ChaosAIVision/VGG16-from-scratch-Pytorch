@@ -21,11 +21,11 @@ class CustomDataLoader(DataLoader):
     def create_dataloader(self):
 
         if self.mode == 'train':
-            data = CustomDataset('train', self.data_yaml, transform_input(224,is_train= True))
+            data = CustomDataset('train', self.data_yaml, transform_input(448,is_train= True))
         elif self.mode == 'valid':
-            data = CustomDataset('valid', self.data_yaml, transform_input(224,is_train= False))
+            data = CustomDataset('valid', self.data_yaml, transform_input(448,is_train= False))
         else:
-            data = CustomDataset('test', self.data_yaml, transform_input(224,is_train= False))
+            data = CustomDataset('test', self.data_yaml, transform_input(448,is_train= False))
         dataloader = DataLoader(
             dataset= data,
             batch_size= self.batch_size,

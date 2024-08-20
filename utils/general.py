@@ -225,9 +225,9 @@ def save_plots_from_tensorboard(tensorboard_folder, output_image_folder):
     plt.figure(figsize=(16, 8))
     
     # Các tag cho huấn luyện
-    train_tags = ['Train/loss', 'Train/accuracy', 'Train/precision', 'Train/recall']
+    train_tags = ['Train/mean_loss', 'Train/accuracy', 'Train/precision', 'Train/recall']
     # Các tag cho kiểm tra
-    valid_tags = ['Valid/loss', 'Valid/accuracy', 'Valid/precision', 'Valid/recall']
+    valid_tags = ['Valid/mean_loss', 'Valid/accuracy', 'Valid/precision', 'Valid/recall']
 
     # Vẽ các biểu đồ cho tập huấn luyện
     for i, tag in enumerate(train_tags):

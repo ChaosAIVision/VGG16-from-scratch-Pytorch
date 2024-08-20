@@ -26,7 +26,7 @@ class CustomDataset(Dataset):
         self.image_paths = []
         self.labels = []
         for index, category in enumerate(self.categories):
-            subdir_path = os.path.join(data_path, category)
+            subdir_path = os.path.join(data_path, category) 
             for file_name in os.listdir(subdir_path):
                 self.image_paths.append(os.path.join(subdir_path, file_name))
                 self.labels.append(index)

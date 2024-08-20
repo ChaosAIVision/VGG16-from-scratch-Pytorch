@@ -13,7 +13,44 @@ def CrossEntropyLoss(outputs: Tensor, targets: Tensor) -> Tensor:
     
     return loss
 
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=0.25, gamma=2.0, reduction='sum'):
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
 
+    def forward(self, inputs, targets):
+        # Ensure inputs and targets are on the same device
+        device = inputs.device
+
+        # Apply softmax to the model outputs
+        inputs = torch.softmax(inputs, dim=1)
+
+        # Compute the focal loss components
+        targets = torch.argmax(targets, dim=1)
+        batch_size = targets.size(0)
+        num_classes = inputs.size(1)
+
+        # One-hot encode the targets and move to the same device as inputs
+        targets_one_hot = torch.eye(num_classes, device=device)[targets]
+
+        # Compute the focal loss
+        alpha = torch.tensor(self.alpha, device=device)
+        gamma = torch.tensor(self.gamma, device=device)
+
+        # Compute cross entropy loss
+        cross_entropy_loss = -targets_one_hot * torch.log(inputs + 1e-8)  # Added epsilon to avoid log(0)
+        
+        # Compute the focal loss
+        focal_loss = alpha * torch.pow(1 - inputs, gamma) * cross_entropy_loss
+        
+        if self.reduction == 'mean':
+            return torch.sum(focal_loss) / batch_size
+        elif self.reduction == 'sum':
+            return torch.sum(focal_loss)
+        else:
+            return focal_loss
 
 if __name__ == ("__main__"):
  
