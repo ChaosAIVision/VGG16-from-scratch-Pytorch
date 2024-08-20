@@ -1,7 +1,13 @@
 train: /home/chaos/Documents/ChaosAIVision/dataset/cat_dog/train
 valid: /home/chaos/Documents/ChaosAIVision/dataset/cat_dog/valid
+<<<<<<< HEAD
 test:  /home/chaos/Documents/ChaosAIVision/dataset/cat_dog/person
 num_classes: 3
 categories: ['person', 'cats', 'dogs']
+=======
+test: 
+num_classes: 2
+categories: ['cats', 'dogs']
+>>>>>>> dad05f70aa7af8cf9411788d1e04347b9f6b82bd
 pretrain_weight: /home/chaos/Documents/ChaosAIVision/vgg16-397923af.pth
 save_dirs: /home/chaos/Documents/ChaosAIVision/temp_folder

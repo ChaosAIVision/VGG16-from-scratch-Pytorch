@@ -12,9 +12,13 @@ from models.vgg16custom import vgg
 from models.yolov1_classify import Yolov1
 from utils.general import ManagerDataYaml, plot_confusion_matrix, ManageSaveDir, save_plots_from_tensorboard
 from utils.dataloader import CustomDataLoader
+<<<<<<< HEAD
 from utils.loss import CrossEntropyLoss, FocalLoss
 
 
+=======
+from utils.loss import CrossEntropyLoss
+>>>>>>> dad05f70aa7af8cf9411788d1e04347b9f6b82bd
 from utils.metrics import  calculate_accuracy, calculate_precision_recall, confusion_matrix 
 import warnings
 from utils.augmentations import transform_labels_to_one_hot
@@ -29,7 +33,11 @@ def get_args():
     parser.add_argument('--learning_rate', '-l', type= float, default= 1e-4)
     parser.add_argument('--resume', action='store_true', help='True if want to resume training')
     parser.add_argument('--pretrain', action='store_true', help='True if want to use pre-trained weights')
+<<<<<<< HEAD
     parser.add_argument('--stop_mse_loss', '-st', type= int, default= 0, help= ' num epochs to stop mse loss and change to Cross Entropy loss')
+=======
+    parser.add_argument('--stop_mse_loss', '-st', type= int, default= 15, help= ' num epochs to stop mse loss and change to Cross Entropy loss')
+>>>>>>> dad05f70aa7af8cf9411788d1e04347b9f6b82bd
     return parser.parse_args()  # Cần trả về kết quả từ parser.parse_args()
 
 
@@ -41,6 +49,7 @@ def train(args):
     pretrain_weight = data_yaml_manage.get_properties(key='pretrain_weight')
     categories = data_yaml_manage.get_properties(key='categories')
     num_classes = data_yaml_manage.get_properties(key='num_classes')
+<<<<<<< HEAD
     # model =  vgg('A', batch_norm=False, num_classes=num_classes)
     S, B, C = 7, 2 ,3
     model = Yolov1(split_size= S, num_boxes= B, num_classes= C)
@@ -59,6 +68,11 @@ def train(args):
     # optimizer = torch.optim.Adam(model.parameters(), lr = args.learning_rate, weight_decay=1e-2 )
     focal_loss = FocalLoss(alpha=0.25, gamma=2.0, reduction='sum')
 
+=======
+    model =  vgg('A', batch_norm=False, num_classes=num_classes)
+    optimizer = torch.optim.SGD(model.parameters(), lr = args.learning_rate, momentum= 0.9)
+    # optimizer = torch.optim.AdamW(model.parameters(), lr = args.learning_rate, weight_decay=1e-2 )
+>>>>>>> dad05f70aa7af8cf9411788d1e04347b9f6b82bd
 
     best_acc = - 100 # create  logic for save weight
     if args.pretrain == True:
@@ -77,7 +91,11 @@ def train(args):
         start_epochs = 0
 
 
+<<<<<<< HEAD
     # model = torch.compile(model)
+=======
+    model = torch.compile(model)
+>>>>>>> dad05f70aa7af8cf9411788d1e04347b9f6b82bd
     model.to(device)
     train_dataloader = CustomDataLoader(args.data_yaml,'train', args.batch_size, num_workers= 4).create_dataloader()
     valid_loader = CustomDataLoader(args.data_yaml,'valid', args.batch_size, num_workers= 2).create_dataloader()
@@ -114,7 +132,11 @@ def train(args):
 
                     loss = mse_loss (output, labels)
                 else:
+<<<<<<< HEAD
                     loss = focal_loss(output, labels)
+=======
+                    loss = CrossEntropyLoss(output, labels)
+>>>>>>> dad05f70aa7af8cf9411788d1e04347b9f6b82bd
             all_train_losses.append(loss.item())
             all_train_labels.extend(interger_labels.tolist())
             all_train_predictions.extend(prediction_train.tolist())
@@ -158,7 +180,11 @@ def train(args):
                         labels = labels.float()
                         loss = mse_loss (output, labels)
                     else:
+<<<<<<< HEAD
                         loss = focal_loss(output, labels)
+=======
+                        loss = CrossEntropyLoss(output, labels)
+>>>>>>> dad05f70aa7af8cf9411788d1e04347b9f6b82bd
                 progress_bar.set_description(f"Epochs {epoch + 1}/{args.epochs} loss: {loss :0.4f}")
                 all_losses.append(loss.item())
                 all_labels.extend(interger_labels.tolist())
